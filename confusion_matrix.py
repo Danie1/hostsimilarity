@@ -93,7 +93,7 @@ class ConfusionMatrix(object):
         return self.precision()/self.positive_rate() - 1
 
     def mutual_information(self):
-        return mutual_info_classif(self.orig_df[[self.classifier]], self.orig_df[self.concept].astype('bool'))
+        return mutual_info_classif(self.orig_df[[self.classifier]], self.orig_df[self.concept].astype('bool'))[0]
 
     def summarize(self, digits=4, enable_mutual_info=False):
         ret = "disabled"

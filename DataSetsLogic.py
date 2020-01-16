@@ -73,27 +73,97 @@ class HostsDS(DSLogic):
         return HostsDS(self.cols, df=ret_ds)
 
     def add_features(self):
-        self.ds["port_product_version"] = self.ds.apply(
-            lambda x: "{}_{}_{}".format(x["port"], x["product"], x["version"]) if pd.notnull(
-                x["product"]) and pd.notnull(
-                x["version"]) else None, axis=1)
-        self.ds["port_product"] = self.ds.apply(
-            lambda x: "{}_{}".format(x["port"], x["product"]) if pd.notnull(x["product"]) else None, axis=1)
+        self.ds['GoogleID'] = self.ds['http.html'].apply(FindGoogleAnalytics)
+
+        def append_fields(x, field_list):
+            values = []
+            # Check not null
+            for f in field_list:
+                try:
+                    if isinstance(x[f], list):
+                        values += "_".join(x[f])
+                    elif not pd.notnull(x[f]):
+                        values += "-.-"
+                    elif isinstance(x[f], str):
+                        values += x[f]
+                    elif isinstance(x[f], int):
+                        values += str(x[f])
+                    else:
+                        raise ValueError("Error: Which value is this?")
+                except ValueError as e:
+                    print(str(e))
+                    print(values)
+                    for n_f in field_list:
+                        print(x[n_f])
+                    values += "-.-"
+
+            return "_".join(values)
+
+        self.ds["feature_group_a"] = self.ds.apply(lambda x: append_fields(x, ["port",
+                                                                               "transport",
+                                                                               "product",
+                                                                               "version",
+                                                                               "tags",
+                                                                               "location.country_name",
+                                                                               "asn",
+                                                                               "isp",
+                                                                               "org"]), axis=1)
+
+        self.ds["cpe_port_transport_product_version"] = self.ds.apply(lambda x: append_fields(x, ["cpe",
+                                                                                                "port",
+                                                                                              "transport",
+                                                                                              "product",
+                                                                                              "version"]), axis=1)
+
+        self.ds["port_transport_product_version"] = self.ds.apply(lambda x: append_fields(x, ["port",
+                                                                                              "transport",
+                                                                                              "product",
+                                                                                              "version"]), axis=1)
+
+        self.ds["cn_asn_org_isp"] = self.ds.apply(lambda x: append_fields(x, ["location.country_name",
+                                                                              "asn",
+                                                                              "org",
+                                                                              "isp"]), axis=1)
+
+        self.ds["cn_port_transport_asn_org_isp"] = self.ds.apply(lambda x: append_fields(x, ["port",
+                                                                                              "location.country_name",
+                                                                                              "transport",
+                                                                                              "asn",
+                                                                                              "org",
+                                                                                              "isp"]), axis=1)
+        self.ds["cpe_port_product"] = self.ds.apply(lambda x: append_fields(x, ["cpe",
+                                                                                "port",
+                                                                                "product"]), axis=1)
+
+        self.ds["cpe_port_product_version"] = self.ds.apply(lambda x: append_fields(x, ["cpe",
+                                                                                "port",
+                                                                                "product",
+                                                                                "version"]), axis=1)
+
+        self.ds["port_product_version"] = self.ds.apply(lambda x: append_fields(x, ["port",
+                                                                                "product",
+                                                                                "version"]), axis=1)
+        self.ds["port_product"] = self.ds.apply(lambda x: append_fields(x, ["port",
+                                                                                "product"]), axis=1)
+
         self.ds["common_port"] = self.ds.apply(
             lambda x: x["port"] if pd.notnull(x["port"]) and int(x["port"]) <= 1023 else None, axis=1)
         self.ds["not_wellknown_port"] = self.ds.apply(
             lambda x: x["port"] if pd.notnull(x["port"]) and int(x["port"]) > 1023 else None, axis=1)
         self.ds["not_registered_port"] = self.ds.apply(
             lambda x: x["port"] if pd.notnull(x["port"]) and int(x["port"]) > 49151 else None, axis=1)
-        self.ds["common_port_transport"] = self.ds.apply(
-            lambda x: "{}_{}".format(x["common_port"], x["transport"]) if pd.notnull(x["common_port"]) and pd.notnull(
-                x["transport"]) else None, axis=1)
-        self.ds["not_wellknown_port_transport"] = self.ds.apply(
-            lambda x: "{}_{}".format(x["not_wellknown_port"], x["transport"]) if pd.notnull(
-                x["not_wellknown_port"]) and pd.notnull(x["transport"]) else None, axis=1)
-        self.ds["not_registered_port_transport"] = self.ds.apply(
-            lambda x: "{}_{}".format(x["not_registered_port"], x["transport"]) if pd.notnull(
-                x["not_registered_port"]) and pd.notnull(x["transport"]) else None, axis=1)
+
+        self.ds["common_port_transport"] = self.ds.apply(lambda x: append_fields(x, ["common_port",
+                                                                                     "transport"]), axis=1)
+        self.ds["not_wellknown_port_transport"] = self.ds.apply(lambda x: append_fields(x, ["not_wellknown_port",
+                                                                                            "transport"]), axis=1)
+        self.ds["not_registered_port_transport"] = self.ds.apply(lambda x: append_fields(x, ["not_registered_port",
+                                                                                            "transport"]), axis=1)
+        self.ds["asn_org_isp"] = self.ds.apply(lambda x: append_fields(x, ["asn", "org", "isp"]), axis=1)
+        self.ds["chain_fingerprint_serial_expires"] = self.ds.apply(lambda x: append_fields(x, ["ssl.chain",
+                                                                                                "ssl.cert.fingerprint.sha256",
+                                                                                                "ssl.cert.serial",
+                                                                                                "ssl.cert.expires"]), axis=1)
 
     def save(self, filepath="fixed_hostsimilarity.json"):
         super(HostsDS, self).save(filepath)
@@ -139,16 +209,25 @@ class PositiveNegativeDS(DSLogic):
         pos_neg_df["pairs"] = pos_neg_df.apply(lambda x: "%s_%s" % tuple(sorted([x["response_x"], x["response_y"]])),
                                                axis=1)
 
-        pos_neg_df = pos_neg_df.drop_duplicates(subset="pairs", keep="last")
+        pos_neg_df = pos_neg_df.drop_duplicates(subset=["pairs", join_column], keep="last")
 
         pos_neg_df = pos_neg_df.drop(columns=["pairs", "counts_x", "counts_y"])
 
         pos_neg_df = pos_neg_df.rename(
-            columns={"response_x": "ip1", "response_y": "ip2", join_column: "domain"}).reset_index(drop=True)
+            columns={"response_x": "ip1", "response_y": "ip2"}).reset_index(drop=True)
 
         pos_neg_df["distance"] = pos_neg_df.apply(lambda x: Distance(x["ip1"], x["ip2"]), axis=1)
 
         pos_neg_df["related"] = "true"
+
+        d = pos_neg_df.groupby([join_column]).size().reset_index(name="count").sort_values(['count'], ascending=False)
+        d["unique"] = d[join_column].apply(lambda x: len(set(list(pos_neg_df[pos_neg_df[join_column] == x]["ip1"]) + list(pos_neg_df[pos_neg_df[join_column] == x]["ip2"]))))
+
+        print("Number of unique IPs: {}".format(d))
+        print("Number of interesting groups: {}".format(len(d[d["count"] > 1])))
+        print("Number of valid groups: {}".format(len(d[d["count"] > 0])))
+        print("{} biggest groups {}".format(5, d.head(5)))
+        print("Number of positive pairs: {}".format(len(pos_neg_df)))
 
         return pos_neg_df.sort_values(["distance"], ascending=True).reset_index(drop=True)
 
@@ -162,7 +241,7 @@ class PositiveNegativeDS(DSLogic):
 
         return pairs_df
 
-    def create(self, domains_ds=None, deprecated=False, join_column=None):
+    def create(self, hosts_ds=None, domains_ds=None, deprecated=False, join_column=None):
         if domains_ds is None:
             raise Exception("Must have a domains data set for positive/negative pairing.")
         if self.ds is not None:
@@ -179,16 +258,31 @@ class PositiveNegativeDS(DSLogic):
 
         # Get random pairs without duplicates.
         # * Some pairs will also be positive. We will remove them later.
-        random_df = GetRandomPairs(pairs_df, ratio=5)
+        if hosts_ds is None:
+            random_df = GetRandomPairs(pairs_df, ratio=5)
+        else:
+            print("Getting the negative pairs with the new method.")
+            ips_list = pairs_df["ip1"].tolist() + pairs_df["ip2"].tolist()
+            ips_list = set(ips_list)
+            filtered_hosts_df = hosts_ds.ds[~hosts_ds.ds['ip_str'].isin(ips_list)]
+            random_df = NegativePairs(filtered_hosts_df, len(pairs_df) * 5, join_column)
+
+            # Keep only the relevant columns
+            random_df = random_df[["related", join_column, "ip1", "ip2", "distance"]]
+
         print("Generated {} random pairs from {} positive pairs.".format(len(random_df), len(pairs_df)))
 
         # Append the random pairs to the positive pairs
-        new_df = pairs_df.append(random_df).reset_index(drop=True)
-        print("Random + Positive = {}".format(len(new_df)))
+        new_df = pairs_df.append(random_df, sort=False).reset_index(drop=True)
 
         # Remove the negative pairs if they exist as positive.
         # (The First pairs will be positive due to the previous line!)
-        self.ds = new_df.groupby(['ip1', 'ip2']).first().reset_index().sort_values(by="distance")
+        tmp_df = new_df.groupby(['ip1', 'ip2']).first().reset_index().sort_values(by="distance")
+
+        # Append the negative pairs which are not duplicates of the positive to the positives
+        self.ds = pairs_df.append(tmp_df[tmp_df["related"] == "false"], sort=False).reset_index(drop=True)
+
+        print("Random + Positive = {}".format(len(self.ds)))
 
         len_positive = len(self.ds[self.ds["related"] == "true"])
         len_negative = len(self.ds[self.ds["related"] == "false"])
@@ -223,7 +317,7 @@ class MergedDS(DSLogic):
             print("Overriding Hosts Dataset with data.")
 
         merged_df1 = pos_neg_df.merge(hosts_df, left_on='ip1', right_on='ip_str')
-        merged_df1["pair"] = merged_df1.apply(lambda x: "{}_{}".format(str(x['ip1']), str(x['ip2'])), axis=1)
+        merged_df1["pair"] = merged_df1.apply(lambda x: "{}_{}".format(x['ip1'], x['ip2']), axis=1)
         merged_df1 = merged_df1.add_prefix("ip1_")
 
         merged_df2 = pos_neg_df.merge(hosts_df, left_on='ip2', right_on='ip_str')
@@ -252,9 +346,55 @@ class MergedDS(DSLogic):
         c = list(tst.groupby(["ip2_ip1"]).sum().reset_index()["ip2_ip1"])
         d = list(tst.groupby(["ip2_ip2"]).sum().reset_index()["ip2_ip2"])
 
-        print("Total Unique Positives: {} && Total Unique Negatives {}".format(len(Join(a, b)), len(Join(c, d))))
-        print("W/ Hosts Total Unique Positives: {} && Total Unique Negatives {}".format(len(lsl), len(tst)))
+        print("Total Unique Positives IPs: {} && Total Unique Negatives IPs {}".format(len(Join(a, b)), len(Join(c, d))))
+        print("W/ Hosts Total Unique Positive Pairs: {} && Total Unique Negative Pairs: {}".format(len(lsl), len(tst)))
 
+    def transform_alt(self, is_equal_cols, values=None):
+        def setup(df, col1_pre, col2_pre, fields, new_pre, values=None):
+            if values is None:
+                values = [0, 0.5, 1]
+
+            if isinstance(fields, str):
+                field = fields
+                print("-- Applying on {} --".format(field))
+
+                error = False
+                if "{}_{}".format(col1_pre, field) not in df.columns:
+                    print("Error ip1_: {}".format("{}_{}".format(col1_pre, field)))
+                    error = True
+                if "{}_{}".format(col2_pre, field) not in df.columns:
+                    print("Error ip2_: {}".format("{}_{}".format(col2_pre, field)))
+                    error = True
+
+                if error:
+                    return
+
+                df.loc[
+                    df["{}_{}".format(col1_pre, field)] != df["{}_{}".format(col2_pre, field)], "is_{}_{}".format(new_pre,
+                                                                                                                  field)] = values[0]
+                df.loc[
+                    pd.isnull(df["{}_{}".format(col1_pre, field)]) & pd.isnull(df["{}_{}".format(col2_pre, field)]), "is_{}_{}".format(new_pre,
+                                                                                                                  field)] = values[1]
+                df.loc[
+                    df["{}_{}".format(col1_pre, field)] == df["{}_{}".format(col2_pre, field)], "is_{}_{}".format(new_pre, field)] = values[2]
+            elif isinstance(fields, list):
+                for field in fields:
+                    setup(df, col1_pre, col2_pre, field, new_pre, values)
+            else:
+                raise Exception("Invalid fields parameter")
+
+        setup(self.ds, "ip1", "ip2", is_equal_cols, "equal", values)
+
+        self.ds['is_close'] = False
+        self.ds.loc[self.ds['ip1_distance'] <= 65535, "is_close"] = True
+
+        self.ds["is_very_close"] = False
+        self.ds.loc[self.ds['ip1_distance'] <= 256, "is_very_close"] = True
+
+        self.ds["related"] = False
+        self.ds.loc[self.ds['ip1_related'] == "true", "related"] = True
+
+        self.ds["pair"] = self.ds["ip1_pair"]
 
     def transform(self, is_equal_cols):
         SetupPredCols(self.ds, "ip1", "ip2", is_equal_cols, "equal")
@@ -282,9 +422,9 @@ class MergedDS(DSLogic):
                 pp.pprint(result)
                 print("\n\n".format(k))
 
-                fd.write("== {} ==\n".format(k))
-                fd.write(pp.pformat(result))
-                fd.write("== {} ==\n\n\n".format(k))
+                #fd.write(str(list(["Feature Name"] + list(result.keys()))))
+                fd.write(str(list([k] + list(result.values()))))
+                fd.write("\n")
 
 class Logic(object):
     def __init__(self):
@@ -320,7 +460,7 @@ class Logic(object):
         self.ds_map[ds_id] = ds
         return self.ds_map[ds_id]
 
-    def get_pos_neg_from_domains(self, domains_ds, new_id, new_ds_class, filepath, join_column=None):
+    def get_pos_neg_from_domains(self, domains_ds, new_id, new_ds_class, filepath, hosts_ds=None, join_column=None):
         if new_id in self.ds_map:
             return self.ds_map[new_id]
 
@@ -330,7 +470,7 @@ class Logic(object):
             ds.load(filepath)
             print("Loaded {} from file {}".format(new_id, filepath))
         else:
-            ds.create(domains_ds, join_column=join_column)
+            ds.create(hosts_ds, domains_ds, join_column=join_column)
             print("Creating {}".format(new_id))
 
         self.ds_map[new_id] = ds

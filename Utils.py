@@ -71,6 +71,10 @@ def FindGoogleAnalytics(data):
                 return "UA-{}".format(f)
     return None
 
+def FindNewRelic(data):
+    #data = str(data)
+    #if data.find(r"\"licenseKey\":\\")
+    return
 
 def LoadAndFixHSSet(columns=[]):
     fd = open("malware_host_scan.json", "r")
@@ -134,6 +138,36 @@ def GetDomainsAndIPsJsons(df):
 def Distance(ip1, ip2):
     return abs(int(ip_address(ip1)) - int(ip_address(ip2)))
 
+
+def NegativePairs(hosts_df, neg_count, join_column):
+    df = hosts_df.copy()
+
+    df_1 = df.copy().add_prefix("ip1_")
+    df_2 = df.copy().add_prefix("ip2_")
+
+    pairs = []
+    ret_df = pd.DataFrame(pairs)
+
+    while len(ret_df) < neg_count:
+        print("Reached here with {} need {}".format(len(ret_df), neg_count))
+
+        rand_df1 = df_1.sample(frac=1).reset_index(drop=True)
+        rand_df2 = df_2.sample(frac=1).reset_index(drop=True)
+
+        pairs_df = pd.concat([rand_df1, rand_df2], axis=1)
+        pairs_df = pairs_df[pairs_df['ip1_ip_str'] != pairs_df['ip2_ip_str']]
+        pairs_df['distance'] = pairs_df.apply(lambda x: Distance(x['ip1_ip_str'], x['ip2_ip_str']), axis=1)
+        pairs_df[join_column] = "GENERATED"
+        pairs_df['ip1'] = pairs_df['ip1_ip_str']
+        pairs_df['ip2'] = pairs_df['ip2_ip_str']
+
+        ret_df = ret_df.append(pairs_df.sample(n=min(len(pairs_df), neg_count)), sort=False)
+        ret_df = ret_df.drop_duplicates(subset=["ip1", "ip2", "ip1_port", "ip2_port"])
+
+    ret_df["related"] = 'false'
+
+    print("Curr {}, Need {}".format(len(ret_df), neg_count))
+    return ret_df.sample(n=neg_count).reset_index(drop=True)
 
 def GetRandomPairs(positive_df, ratio=10):
     pairs = []
