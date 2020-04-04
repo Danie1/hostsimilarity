@@ -1,4 +1,15 @@
+#!/usr/bin/env python3
 from DataSetsLogic import *
+
+
+def save_pos_pairs_data(pos_neg_ds, join_column, f_path):
+    pos_groups_df = pos_neg_ds.ds[pos_neg_ds.ds["related"] == "true"].groupby([join_column]).size().reset_index(name="count").sort_values(
+        ['count'], ascending=False)
+    pos_groups_df["unique"] = pos_groups_df[join_column].apply(lambda x: len(set(list(
+        pos_neg_ds.ds[pos_neg_ds.ds["related"] == "true"][pos_neg_ds.ds[pos_neg_ds.ds["related"] == "true"][join_column] == x]["ip1"]) + list(
+        pos_neg_ds.ds[pos_neg_ds.ds["related"] == "true"][pos_neg_ds.ds[pos_neg_ds.ds["related"] == "true"][join_column] == x]["ip2"]))))
+
+    pos_groups_df.to_csv(os.path.join(f_path), index=False)
 
 
 def root_domain_logic(workspace_dir, hosts_cols, is_equal_cols, root_domain_cols, new_grouping=True):
@@ -18,6 +29,8 @@ def root_domain_logic(workspace_dir, hosts_cols, is_equal_cols, root_domain_cols
 
     pos_neg_ds = l.get_pos_neg_from_domains(domains_ds, "pos_neg1", PositiveNegativeDS,
                                             os.path.join(workspace_dir, "pos_neg1.json"), grouping, join_column="domain_fix")
+
+    save_pos_pairs_data(pos_neg_ds, join_column="domain_fix", f_path=os.path.join(workspace_dir, "{}_pos_groups_TLD.csv".format(prefix)))
 
     # Multiple IPs (rows) will be aggregated to one row per IP. All other fields will be in lists.
     new_hosts_ds = hosts_ds.transform()
@@ -79,6 +92,9 @@ def sha256logic(workspace_dir, hosts_cols, is_equal_cols, md5_domain_cols, new_g
     pos_neg_ds = l.get_pos_neg_from_domains(domains_ds, "pos_neg2", PositiveNegativeDS,
                                             os.path.join(workspace_dir, "pos_neg2.json"), grouping, join_column="sha256")
 
+    save_pos_pairs_data(pos_neg_ds, join_column="sha256",
+                        f_path=os.path.join(workspace_dir, "{}_pos_groups_MAL.csv".format(prefix)))
+
     # Multiple IPs (rows) will be aggregated to one row per IP. All other fields will be in lists.
     new_hosts_ds = hosts_ds.transform()
 
@@ -119,7 +135,7 @@ def sha256logic(workspace_dir, hosts_cols, is_equal_cols, md5_domain_cols, new_g
             values=[0, 0, 1],
             _prefix="{}_{}".format(prefix, "NO_NULL"))
 def main():
-    WORKSPACE_DIR = "hs_results_11"
+    WORKSPACE_DIR = "hs_results_20"
 
     hosts_cols = ['asn', 'domains', 'product', 'ip', 'ip_str', 'http.html_hash', 'location.country_name',
          'location.latitude', 'location.longitude', 'org', 'os', 'port', 'opts.vulns', 'info', 'cpe', 'transport', "opts.raw",
@@ -142,11 +158,11 @@ def main():
     if not os.path.exists(WORKSPACE_DIR):
         os.mkdir(WORKSPACE_DIR, 777)
 
-    print("=> Starting with TLD New")
-    root_domain_logic(WORKSPACE_DIR, hosts_cols, is_equal_cols, root_domain_cols, new_grouping=True)
+    #print("=> Starting with TLD New")
+    #root_domain_logic(WORKSPACE_DIR, hosts_cols, is_equal_cols, root_domain_cols, new_grouping=True)
 
-    print("=> Starting with TLD Old")
-    root_domain_logic(WORKSPACE_DIR, hosts_cols, is_equal_cols, root_domain_cols, new_grouping=False)
+    #print("=> Starting with TLD Old")
+    #root_domain_logic(WORKSPACE_DIR, hosts_cols, is_equal_cols, root_domain_cols, new_grouping=False)
 
     print("=> Starting with SHA New")
     sha256logic(WORKSPACE_DIR, hosts_cols, is_equal_cols, md5_domain_cols, new_grouping=True)

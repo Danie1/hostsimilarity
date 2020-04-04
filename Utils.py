@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 import collections
 import json
 import pandas as pd
@@ -59,9 +60,14 @@ def ReverseDict(d):
             new_d[i] += [k]
     return new_d
 
+def safe_str(obj):
+    try: return str(obj)
+    except UnicodeEncodeError:
+        return obj.encode('ascii', 'ignore').decode('ascii')
+    return ""
 
 def FindGoogleAnalytics(data):
-    data = str(data)
+    data = safe_str(data)
     if data.find("UA-") != -1:
         index = data.find("UA-") + len("UA-")
         nextb = data[index:].find("-")
@@ -77,7 +83,7 @@ def FindNewRelic(data):
     return
 
 def LoadAndFixHSSet(columns=[]):
-    fd = open("malware_host_scan.json", "r")
+    fd = open(os.path.join("datasets", "malware_host_scan.json"), "r")
 
     all_lines = fd.readlines()
 
@@ -98,16 +104,18 @@ def LoadAndFixHSSet(columns=[]):
 
 
 def LoadAndFixDomainsSet(domains_to_root=True):
-    domains_df = pd.read_csv('all_domains_links.csv')
+    domains_df = pd.read_csv(os.path.join("datasets", 'all_domains_links.csv'))
 
     # Copy only the A rows to a new dataframe
     new_domains_df = domains_df.loc[domains_df.type == 'A'].copy().reset_index()[["sha256", "domain", "benign", "response"]]
-    new_domains_df = new_domains_df[new_domains_df["benign"] == 0]
 
     if domains_to_root:
         # Turn all Domains -> Root Domains
         new_domains_df = new_domains_df.groupby(["domain", "response"]).size().reset_index(name='counts').sort_values(by='counts',
                                                                                                               ascending=False)
+    else:
+        new_domains_df = new_domains_df[new_domains_df["benign"] == 0]
+
     new_domains_df['domain_fix'] = new_domains_df['domain'].apply(ExtractRootDomain)
 
     return new_domains_df

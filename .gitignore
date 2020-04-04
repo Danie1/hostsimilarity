@@ -1,0 +1,4 @@
+*.unotes
+*.pyc
+__pycache__
+datasets

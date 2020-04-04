@@ -223,7 +223,7 @@ class PositiveNegativeDS(DSLogic):
         d = pos_neg_df.groupby([join_column]).size().reset_index(name="count").sort_values(['count'], ascending=False)
         d["unique"] = d[join_column].apply(lambda x: len(set(list(pos_neg_df[pos_neg_df[join_column] == x]["ip1"]) + list(pos_neg_df[pos_neg_df[join_column] == x]["ip2"]))))
 
-        print("Number of unique IPs: {}".format(d))
+        print("Number of unique IPs: {}".format(d["unique"]))
         print("Number of interesting groups: {}".format(len(d[d["count"] > 1])))
         print("Number of valid groups: {}".format(len(d[d["count"] > 0])))
         print("{} biggest groups {}".format(5, d.head(5)))
@@ -265,6 +265,9 @@ class PositiveNegativeDS(DSLogic):
             ips_list = pairs_df["ip1"].tolist() + pairs_df["ip2"].tolist()
             ips_list = set(ips_list)
             filtered_hosts_df = hosts_ds.ds[~hosts_ds.ds['ip_str'].isin(ips_list)]
+            print("Hosts Set Unique IPs: {} || Domains Set Unique IPs {} || H not in D: {}".format(hosts_ds.ds['ip_str'].nunique(), 
+                                                                                                   len(ips_list), 
+                                                                                                   filtered_hosts_df['ip_str'].nunique()))
             random_df = NegativePairs(filtered_hosts_df, len(pairs_df) * 5, join_column)
 
             # Keep only the relevant columns
