@@ -1,4 +1,5 @@
 *.unotes
 *.pyc
 __pycache__
-datasets
+data_processing/datasets
+results

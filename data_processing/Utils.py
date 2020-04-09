@@ -83,7 +83,7 @@ def FindNewRelic(data):
     return
 
 def LoadAndFixHSSet(columns=[]):
-    fd = open(os.path.join("datasets", "malware_host_scan.json"), "r")
+    fd = open(os.path.join("data_processing", "datasets", "malware_host_scan.json"), "r")
 
     all_lines = fd.readlines()
 
@@ -104,17 +104,18 @@ def LoadAndFixHSSet(columns=[]):
 
 
 def LoadAndFixDomainsSet(domains_to_root=True):
-    domains_df = pd.read_csv(os.path.join("datasets", 'all_domains_links.csv'))
+    domains_df = pd.read_csv(os.path.join("data_processing", "datasets", 'all_domains_links.csv'))
 
     # Copy only the A rows to a new dataframe
     new_domains_df = domains_df.loc[domains_df.type == 'A'].copy().reset_index()[["sha256", "domain", "benign", "response"]]
+    
+    # Use only the rows that PAN advised (non-benign)
+    new_domains_df = new_domains_df[new_domains_df["benign"] == 0]
 
     if domains_to_root:
         # Turn all Domains -> Root Domains
         new_domains_df = new_domains_df.groupby(["domain", "response"]).size().reset_index(name='counts').sort_values(by='counts',
                                                                                                               ascending=False)
-    else:
-        new_domains_df = new_domains_df[new_domains_df["benign"] == 0]
 
     new_domains_df['domain_fix'] = new_domains_df['domain'].apply(ExtractRootDomain)
 

@@ -135,7 +135,7 @@ def sha256logic(workspace_dir, hosts_cols, is_equal_cols, md5_domain_cols, new_g
             values=[0, 0, 1],
             _prefix="{}_{}".format(prefix, "NO_NULL"))
 def main():
-    WORKSPACE_DIR = "hs_results_20"
+    WORKSPACE_DIR = os.path.join("results", "hs_results")
 
     hosts_cols = ['asn', 'domains', 'product', 'ip', 'ip_str', 'http.html_hash', 'location.country_name',
          'location.latitude', 'location.longitude', 'org', 'os', 'port', 'opts.vulns', 'info', 'cpe', 'transport', "opts.raw",
@@ -158,11 +158,11 @@ def main():
     if not os.path.exists(WORKSPACE_DIR):
         os.mkdir(WORKSPACE_DIR, 777)
 
-    #print("=> Starting with TLD New")
-    #root_domain_logic(WORKSPACE_DIR, hosts_cols, is_equal_cols, root_domain_cols, new_grouping=True)
+    print("=> Starting with TLD New")
+    root_domain_logic(WORKSPACE_DIR, hosts_cols, is_equal_cols, root_domain_cols, new_grouping=True)
 
-    #print("=> Starting with TLD Old")
-    #root_domain_logic(WORKSPACE_DIR, hosts_cols, is_equal_cols, root_domain_cols, new_grouping=False)
+    print("=> Starting with TLD Old")
+    root_domain_logic(WORKSPACE_DIR, hosts_cols, is_equal_cols, root_domain_cols, new_grouping=False)
 
     print("=> Starting with SHA New")
     sha256logic(WORKSPACE_DIR, hosts_cols, is_equal_cols, md5_domain_cols, new_grouping=True)
